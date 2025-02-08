@@ -1,5 +1,5 @@
 export interface IAttachment {
-    url: string;
     contentType: string;
+    text: File;
     title: string;
 }
