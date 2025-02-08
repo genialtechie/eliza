@@ -1,3 +1,4 @@
+import { type Plugin } from "@elizaos/core";
 import { PGLiteDatabaseAdapter } from "@elizaos/adapter-pglite";
 import { PostgresDatabaseAdapter } from "@elizaos/adapter-postgres";
 import { QdrantDatabaseAdapter } from "@elizaos/adapter-qdrant";
@@ -56,7 +57,7 @@ import { normalizeCharacter } from "@elizaos/plugin-di";
 import createGoatPlugin from "@elizaos/plugin-goat";
 import createZilliqaPlugin from "@elizaos/plugin-zilliqa";
 
-// import { intifacePlugin } from "@elizaos/plugin-intiface";
+import { intifacePlugin } from "@elizaos/plugin-intiface";
 import { ThreeDGenerationPlugin } from "@elizaos/plugin-3d-generation";
 import { abstractPlugin } from "@elizaos/plugin-abstract";
 import { akashPlugin } from "@elizaos/plugin-akash";
@@ -94,7 +95,6 @@ import { gitcoinPassportPlugin } from "@elizaos/plugin-gitcoin-passport";
 import { initiaPlugin } from "@elizaos/plugin-initia";
 import { imageGenerationPlugin } from "@elizaos/plugin-image-generation";
 import { lensPlugin } from "@elizaos/plugin-lens-network";
-import { litPlugin } from "@elizaos/plugin-lit";
 import { mindNetworkPlugin } from "@elizaos/plugin-mind-network";
 import { multiversxPlugin } from "@elizaos/plugin-multiversx";
 import { nearPlugin } from "@elizaos/plugin-near";
@@ -157,7 +157,7 @@ import { ankrPlugin } from "@elizaos/plugin-ankr";
 import { formPlugin } from "@elizaos/plugin-form";
 import { MongoClient } from "mongodb";
 import { quickIntelPlugin } from "@elizaos/plugin-quick-intel";
-
+import { createJobSearchPlugin } from "@elizaos/plugin-job-search";
 import { trikonPlugin } from "@elizaos/plugin-trikon";
 import arbitragePlugin from "@elizaos/plugin-arbitrage";
 const __filename = fileURLToPath(import.meta.url); // get the resolved path to the file
@@ -920,7 +920,8 @@ function getSecret(character: Character, secret: string) {
     return character.settings?.secrets?.[secret] || process.env[secret];
 }
 
-let nodePlugin: any | undefined;
+let nodePlugin: Plugin | undefined;
+let jobSearchPlugin: Plugin | undefined;
 
 export async function createAgent(
     character: Character,
@@ -931,7 +932,7 @@ export async function createAgent(
     elizaLogger.log(`Creating runtime for character ${character.name}`);
 
     nodePlugin ??= createNodePlugin();
-
+    jobSearchPlugin ??= createJobSearchPlugin();
     const teeMode = getSecret(character, "TEE_MODE") || "OFF";
     const walletSecretSalt = getSecret(character, "WALLET_SECRET_SALT");
 
@@ -1045,6 +1046,7 @@ export async function createAgent(
                 ? confluxPlugin
                 : null,
             nodePlugin,
+            jobSearchPlugin,
             getSecret(character, "ROUTER_NITRO_EVM_PRIVATE_KEY") &&
             getSecret(character, "ROUTER_NITRO_EVM_ADDRESS")
                 ? nitroPlugin
@@ -1474,22 +1476,37 @@ const hasValidRemoteUrls = () =>
 const startAgents = async () => {
     const directClient = new DirectClient();
     let serverPort = Number.parseInt(settings.SERVER_PORT || "3000");
-    const args = parseArguments();
-    const charactersArg = args.characters || args.character;
-    let characters = [defaultCharacter];
+    // const args = parseArguments();
+    // const charactersArg = args.characters || args.character;
+    let characters = [
+        {
+            ...defaultCharacter,
+            modelProvider: ModelProviderName.OPENROUTER,
+            settings: {
+                ...defaultCharacter.settings,
+                model: "sophosympatheia/rogue-rose-103b-v0.2:free",
+                secrets: {
+                    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+                    OPENROUTER_MODEL: process.env.OPENROUTER_MODEL,
+                    LINKEDIN_EMAIL: process.env.LINKEDIN_EMAIL,
+                    LINKEDIN_PASSWORD: process.env.LINKEDIN_PASSWORD,
+                },
+            },
+        },
+    ];
 
-    if (process.env.IQ_WALLET_ADDRESS && process.env.IQSOlRPC) {
-        characters = await loadCharacterFromOnchain();
-    }
+    // if (process.env.IQ_WALLET_ADDRESS && process.env.IQSOlRPC) {
+    //     characters = await loadCharacterFromOnchain();
+    // }
 
-    const notOnchainJson = !onchainJson || onchainJson == "null";
+    // const notOnchainJson = !onchainJson || onchainJson == "null";
 
-    if ((notOnchainJson && charactersArg) || hasValidRemoteUrls()) {
-        characters = await loadCharacters(charactersArg);
-    }
+    // if ((notOnchainJson && charactersArg) || hasValidRemoteUrls()) {
+    //     characters = await loadCharacters(charactersArg);
+    // }
 
     // Normalize characters for injectable plugins
-    characters = await Promise.all(characters.map(normalizeCharacter));
+    //characters = await Promise.all(characters.map(normalizeCharacter));
 
     try {
         for (const character of characters) {
