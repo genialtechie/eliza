@@ -1,0 +1,58 @@
+{
+    "name": "@elizaos/plugin-job-search",
+    "version": "0.1.9",
+    "type": "module",
+    "main": "dist/index.js",
+    "module": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        "./package.json": "./package.json",
+        ".": {
+            "import": {
+                "@elizaos/source": "./src/index.ts",
+                "types": "./dist/index.d.ts",
+                "default": "./dist/index.js"
+            }
+        }
+    },
+    "files": [
+        "dist",
+        "package.json",
+        "tsup.config.ts"
+    ],
+    "dependencies": {
+        "@elizaos/core": "workspace:*",
+        "@elizaos/plugin-node": "workspace:*",
+        "cheerio": "^1.0.0",
+        "pdf-parse": "^1.1.1",
+        "puppeteer": "^23.11.1",
+        "zod": "^3.22.4"
+    },
+    "devDependencies": {
+        "@types/node": "22.8.4",
+        "tsup": "8.3.5"
+    },
+    "scripts": {
+        "build": "tsup --format esm --dts",
+        "dev": "tsup --format esm --dts --watch"
+    },
+    "peerDependencies": {
+        "onnxruntime-node": "1.20.1",
+        "whatwg-url": "7.1.0"
+    },
+    "trustedDependencies": {
+        "onnxruntime-node": "1.20.1",
+        "sharp": "0.33.5"
+    },
+    "author": {
+        "name": "genialtechie",
+        "email": "only1hbo@icloud.com"
+    },
+    "license": "MIT",
+    "keywords": [
+        "eliza",
+        "plugin",
+        "job search",
+        "auto apply"
+    ]
+}
