@@ -7,7 +7,7 @@ import {
 import { ChatInput } from "@/components/ui/chat/chat-input";
 import { ChatMessageList } from "@/components/ui/chat/chat-message-list";
 import { useTransition, animated, type AnimatedProps } from "@react-spring/web";
-import { Paperclip, Send, X } from "lucide-react";
+import { FileText, File, Paperclip, Send, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Content, UUID } from "@elizaos/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,6 +22,7 @@ import AIWriter from "react-aiwriter";
 import type { IAttachment } from "@/types";
 import { AudioRecorder } from "./audio-recorder";
 import { Badge } from "./ui/badge";
+import type { Media } from "@elizaos/core";
 import { useAutoScroll } from "./ui/chat/hooks/useAutoScroll";
 
 type ExtraContentFields = {
@@ -36,6 +37,75 @@ type AnimatedDivProps = AnimatedProps<{ style: React.CSSProperties }> & {
     children?: React.ReactNode;
 };
 
+type AttachmentType = Media | IAttachment;
+
+interface AttachmentPreviewProps {
+    attachment: AttachmentType;
+}
+
+const AttachmentPreview = ({ attachment }: AttachmentPreviewProps) => {
+    // Handle File type (browser's File API)
+    if (attachment && "type" in attachment && "name" in attachment) {
+        if (attachment.contentType?.includes("image/")) {
+            return (
+                <img
+                    src={attachment.url}
+                    width="100%"
+                    height="100%"
+                    alt={attachment.title}
+                    className="max-w-[200px] h-auto rounded-md"
+                />
+            );
+        }
+        return (
+            <div className="flex items-center gap-2 mt-2 p-2 bg-muted rounded-md">
+                <div className="bg-background p-2 rounded-md">
+                    {attachment.contentType === "application/pdf" ? (
+                        <FileText className="size-6 text-primary" />
+                    ) : (
+                        <File className="size-6 text-primary" />
+                    )}
+                </div>
+                <div className="flex flex-col text-sm">
+                    <span className="font-medium truncate max-w-[120px]">
+                        {attachment.title}
+                    </span>
+                </div>
+            </div>
+        );
+    }
+
+    // Handle IAttachment type
+    if (attachment && "text" in attachment) {
+        if (attachment.contentType?.includes("image/")) {
+            return (
+                <img
+                    src={attachment.url}
+                    alt={attachment.title}
+                    className="max-w-[200px] h-auto rounded-md"
+                />
+            );
+        }
+        return (
+            <div className="flex items-center gap-2 mt-2 p-2 bg-muted rounded-md">
+                <div className="bg-background p-2 rounded-md">
+                    {attachment.contentType === "application/pdf" ? (
+                        <FileText className="size-6 text-primary" />
+                    ) : (
+                        <File className="size-6 text-primary" />
+                    )}
+                </div>
+                <div className="flex flex-col text-sm">
+                    <span className="font-medium truncate max-w-[120px]">
+                        {attachment.title}
+                    </span>
+                </div>
+            </div>
+        );
+    }
+
+    return null;
+};
 export default function Page({ agentId }: { agentId: UUID }) {
     const { toast } = useToast();
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -49,10 +119,11 @@ export default function Page({ agentId }: { agentId: UUID }) {
     const getMessageVariant = (role: string) =>
         role !== "user" ? "received" : "sent";
 
-    const { scrollRef, isAtBottom, scrollToBottom, disableAutoScroll } = useAutoScroll({
-        smooth: true,
-    });
-   
+    const { scrollRef, isAtBottom, scrollToBottom, disableAutoScroll } =
+        useAutoScroll({
+            smooth: true,
+        });
+
     useEffect(() => {
         scrollToBottom();
     }, [queryClient.getQueryData(["messages", agentId])]);
@@ -76,8 +147,8 @@ export default function Page({ agentId }: { agentId: UUID }) {
         const attachments: IAttachment[] | undefined = selectedFile
             ? [
                   {
-                      url: URL.createObjectURL(selectedFile),
                       contentType: selectedFile.type,
+                      url: URL.createObjectURL(selectedFile),
                       title: selectedFile.name,
                   },
               ]
@@ -151,7 +222,17 @@ export default function Page({ agentId }: { agentId: UUID }) {
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file?.type.startsWith("image/")) {
+        if (file) {
+            // Check file size (10MB limit)
+            if (file.size > 10 * 1024 * 1024) {
+                toast({
+                    title: "File too large",
+                    description: "Please upload a file smaller than 10MB",
+                    variant: "destructive",
+                });
+                return;
+            }
+
             setSelectedFile(file);
         }
     };
@@ -173,7 +254,7 @@ export default function Page({ agentId }: { agentId: UUID }) {
     return (
         <div className="flex flex-col w-full h-[calc(100dvh)] p-4">
             <div className="flex-1 overflow-y-auto">
-                <ChatMessageList 
+                <ChatMessageList
                     scrollRef={scrollRef}
                     isAtBottom={isAtBottom}
                     scrollToBottom={scrollToBottom}
@@ -212,24 +293,15 @@ export default function Page({ agentId }: { agentId: UUID }) {
                                                 message?.text
                                             )}
                                             {/* Attachments */}
-                                            <div>
+                                            <div className="flex flex-col gap-2 mt-2">
                                                 {message?.attachments?.map(
-                                                    (attachment: IAttachment) => (
-                                                        <div
-                                                            className="flex flex-col gap-1 mt-2"
-                                                            key={`${attachment.url}-${attachment.title}`}
-                                                        >
-                                                            <img
-                                                                alt="attachment"
-                                                                src={attachment.url}
-                                                                width="100%"
-                                                                height="100%"
-                                                                className="w-64 rounded-md"
+                                                    (attachment, idx) => (
+                                                        <div key={idx}>
+                                                            <AttachmentPreview
+                                                                attachment={
+                                                                    attachment
+                                                                }
                                                             />
-                                                            <div className="flex items-center justify-between gap-4">
-                                                                <span />
-                                                                <span />
-                                                            </div>
                                                         </div>
                                                     )
                                                 )}
@@ -299,12 +371,12 @@ export default function Page({ agentId }: { agentId: UUID }) {
                                 >
                                     <X />
                                 </Button>
-                                <img
-                                    alt="Selected file"
-                                    src={URL.createObjectURL(selectedFile)}
-                                    height="100%"
-                                    width="100%"
-                                    className="aspect-square object-contain w-16"
+                                <AttachmentPreview
+                                    attachment={{
+                                        contentType: selectedFile.type,
+                                        url: URL.createObjectURL(selectedFile),
+                                        title: selectedFile.name,
+                                    }}
                                 />
                             </div>
                         </div>
@@ -339,7 +411,7 @@ export default function Page({ agentId }: { agentId: UUID }) {
                                         type="file"
                                         ref={fileInputRef}
                                         onChange={handleFileChange}
-                                        accept="image/*"
+                                        accept=".pdf,.docx,image/*"
                                         className="hidden"
                                     />
                                 </div>
